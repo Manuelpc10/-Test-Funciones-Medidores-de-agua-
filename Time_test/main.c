@@ -25,7 +25,7 @@
 /* ================================================================================================  */
 /* ||         Current datetime         ||     */
 
-uint8_t Frame_2[8]={13,33,44, 1,43, 6 ,2,1};
+uint8_t Frame_2[8]={13,33,44, 23,43, 6 ,2,1};
 
 
 /*
@@ -74,16 +74,15 @@ uint32_t FirstTransmission(uint32_t CurrentTime, uint32_t updateTime, uint32_t F
     if(updateTime > CurrentTime) {
         for(i = 0; i <= Amounts; i++) {
             if((updateTime -= FreqTransm) < CurrentTime) { updateTime += FreqTransm; break; }
-            Seconds2HMS(updateTime);  printf("\n");
+//            Seconds2HMS(updateTime);  printf("\n");
         }
     }
     if (updateTime < CurrentTime) {
         for(i = 0; i <= Amounts; i++) {
              if((updateTime = updateTime + FreqTransm) >= CurrentTime) break;
-             Seconds2HMS(updateTime); printf("\n");
+//             Seconds2HMS(updateTime); printf("\n");
         }  
-    }
-    
+    }   
     Seconds2HMS(updateTime);
     return (updateTime - CurrentTime);
 }
@@ -107,42 +106,24 @@ int main(int argc, char** argv) {
     updateTime = Time2Seconds(Frame_2[BYTE3_HOURS], Frame_2[BYTE4_MINUTES], 0); 
     FreqTransm = TransmissionFrequencyCalculation(Frame_2[BYTE5_AMOUNTS]);
     
-    printf("El dispositivo Transmirtira %u veces al día. \na partir de las: ", Frame_2[BYTE5_AMOUNTS]);
-    Seconds2HMS(updateTime); printf("\n\n");
-
-    TransmissionHours(updateTime, FreqTransm, Frame_2[BYTE5_AMOUNTS]);                              printf("\n\n");
+    printf("Veces que el dispositivo transmitirá al día: %u \n", Frame_2[BYTE5_AMOUNTS]);
+    printf("Empezara a transmitir a partir de las: "); Seconds2HMS(updateTime); printf("\n");
+    printf("Horas en el día en que el dispositivo transmitirá: ");
+    
+    TransmissionHours(updateTime, FreqTransm, Frame_2[BYTE5_AMOUNTS]);         printf("\n");
+    
+    printf("Hora Acual: "); Seconds2HMS(CurrentTime);                          printf("\n");
+    printf("Hora de la proxima transmision: ");                
     FirsTransm = FirstTransmission(CurrentTime, updateTime, FreqTransm, Frame_2[BYTE5_AMOUNTS]);    printf("\n\n");
     
-    printf("\n");
-    printf("Hora actual en segundos:              %u s - ",CurrentTime);  Seconds2HMS(CurrentTime);  printf("\n");
-    printf("Hora de transmision                   %u s - ",updateTime);   Seconds2HMS(updateTime);   printf("\n");
-    printf("Frecuencia de transmision:            %u s - ",FreqTransm);   Seconds2HMS(FreqTransm);   printf("\n");
-    printf("Tiempo para la primera tranmision:    %u s - ",FirsTransm);   Seconds2HMS(FirsTransm);   printf("\n");
+    printf(" =======================================================================================================");
+    printf("\n||                                     Resumen                                                        ||");
+    printf("\n =======================================================================================================\n");
+    printf("||    Hora actual en segundos:              %u s - ",CurrentTime);  Seconds2HMS(CurrentTime);  printf("\n");
+    printf("||    Hora de transmision                   %u s - ",updateTime);   Seconds2HMS(updateTime);   printf("\n");
+    printf("||    Frecuencia de transmision:            %u s - ",FreqTransm);   Seconds2HMS(FreqTransm);   printf("\n");
+    printf("||    Tiempo para la primera tranmision:    %u s - ",FirsTransm);   Seconds2HMS(FirsTransm);   printf("\n");
+    printf(" =======================================================================================================");
 
     return (EXIT_SUCCESS);
 }
-
-
-//uint32_t FirstTransmission(uint32_t CurrentTime, uint32_t updateTime, uint32_t FreqTransm,uint32_t Amounts) {
-//    uint32_t i,flag = 0;
-//
-//    if(updateTime > CurrentTime) {
-//        for(i = 0; i <= Amounts; i++) {
-//            if((updateTime = updateTime + FreqTransm) >= ONEDAY_ON_SECONDS) {
-//                updateTime = updateTime - ONEDAY_ON_SECONDS;
-//                flag = 1;
-//            }
-//            if (flag) if (updateTime >= CurrentTime) break;
-//            Seconds2HMS(updateTime);
-//        }
-//    }
-//    if (updateTime < CurrentTime) {
-//        for(i = 0; i <= Amounts; i++) {
-//             if((updateTime = updateTime + FreqTransm) >= CurrentTime) break;
-//             Seconds2HMS(updateTime);
-//        }
-//    }
-//    
-//    Seconds2HMS(updateTime);
-//    return (updateTime - CurrentTime);
-//}
