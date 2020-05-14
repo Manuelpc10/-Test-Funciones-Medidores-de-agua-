@@ -1,32 +1,41 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 
 
-#define BYTE7_HOURS        0x00   
-#define BYTE6_MINUTES      0x01
-#define BYTE5_SECONDS      0x02
-#define BYTE4_AMOUNTS      0x03
+#define BYTE0_HOURS        0x00   
+#define BYTE1_MINUTES      0x01
+#define BYTE2_SECONDS      0x02
+
+#define BYTE3_HOURS        0x03
+#define BYTE4_MINUTES      0x04
+
+#define BYTE5_AMOUNTS      0x05
+
 
 #define ONEDAY_ON_SECONDS      86400
 #define ONE_HOUR_IN_SECONDS    3600  
 
-// ===============================================================================
-//    Byte7     Byte6    Byte5    Byte4     Byte3     Byte2     Byte1    Byte0
-//  || hour  ||  Min  ||  Sec  || Amount || On/Off || T_Alarm||       ||       ||
-// ===============================================================================
+/* ================================================================================================  */
+/*                                      Frame 1 Down-Link                                            */
+/* ================================================================================================  */
+/* ||  Byte0   ||  Byte1   ||  Byte2   ||  Byte3   ||   Byte4  ||  Byte5   ||  Byte6   ||  Byte7  || */
+/* ================================================================================================  */
+/* ||   hour   ||   Min    ||   Sec    ||   hour   ||   Min    ||  Frequ   ||          || Frame 1 || */
+/* ================================================================================================  */
+/* ||         Current datetime         ||     */
 
-uint8_t FrameDL[8]={17,33,44,96, 4,3,2,1};
+uint8_t Frame_2[8]={13,33,44, 1,43, 6 ,2,1};
+
 
 /*
  **  ============ Convert seconds to Hours, Minutes, seconds ==================
  */
-void Seconds2HMS(uint32_t seconds){
+void Seconds2HMS(uint32_t seconds) {
     uint8_t hour, minu, seco;
     if(seconds >= 3600) hour = (uint8_t)(seconds/3600); else hour = 0;              printf("%u:",hour);
     if(seconds >= 60) minu = (uint8_t)((seconds-(hour*3600))/60); else minu = 0;    printf("%u:",minu);
-    seco = (uint8_t)(seconds-((hour*3600)+(minu*60)));                              printf("%u \n",seco);
+    seco = (uint8_t)(seconds-((hour*3600)+(minu*60)));                              printf("%u",seco);
 }
 /*
  **  =============== Time to Seconds ==================
@@ -42,27 +51,41 @@ uint32_t TransmissionFrequencyCalculation(uint8_t NumofTime) {
     else return -1;
 }
 /*
- **  ============ Calculate how much time for the first transmission ==================
+ **  =============== function that shows the hours to transmit ==================
  */
-uint32_t FirstTransmission(uint32_t CurrentTime, uint32_t TrnFreqCal, uint8_t NumofTime){
-    uint8_t i;  uint32_t ret = 0;
+void TransmissionHours(uint32_t updateTime, uint32_t FreqTransm, uint32_t Amounts) {
+    uint8_t i;
     
-    for(i=0; i <= NumofTime; i++){
-        if((ret = TrnFreqCal*i) >= CurrentTime){ printf("%u\n",ret); return (uint32_t)(ret-CurrentTime);} 
+    Seconds2HMS(updateTime); printf(" || ");
+    for(i = 2; i <= Amounts; i++) {
+        if((updateTime = updateTime + FreqTransm) >= ONEDAY_ON_SECONDS) {
+            updateTime = updateTime - ONEDAY_ON_SECONDS;
+        }
+        Seconds2HMS(updateTime); printf(" || "); 
     }
 }
+
 /*
- **  ============ Calculate next transmission ==================
+ **  ============ Calculate how much time for the first transmission ==================
  */
-uint32_t NextTransmissonCalculate(uint8_t NumofTime, uint32_t CurrentTime){
-    uint32_t TrnFreqCal, ret = 0;  uint8_t i;
-    
-    if(NumofTime == 0) return -1;
-   
-    TrnFreqCal = (uint32_t)(ONEDAY_ON_SECONDS/NumofTime);
-    for(i=0; i <= NumofTime; i++){
-        if((ret = TrnFreqCal*i) >= CurrentTime){ printf("%u\n",ret); return (uint32_t)(ret-CurrentTime);}
+uint32_t FirstTransmission(uint32_t CurrentTime, uint32_t updateTime, uint32_t FreqTransm, uint32_t Amounts) {
+    uint32_t i;
+
+    if(updateTime > CurrentTime) {
+        for(i = 0; i <= Amounts; i++) {
+            if((updateTime -= FreqTransm) < CurrentTime) { updateTime += FreqTransm; break; }
+            Seconds2HMS(updateTime);  printf("\n");
+        }
     }
+    if (updateTime < CurrentTime) {
+        for(i = 0; i <= Amounts; i++) {
+             if((updateTime = updateTime + FreqTransm) >= CurrentTime) break;
+             Seconds2HMS(updateTime); printf("\n");
+        }  
+    }
+    
+    Seconds2HMS(updateTime);
+    return (updateTime - CurrentTime);
 }
 
 /*
@@ -78,21 +101,48 @@ uint32_t division(uint32_t Dividend, uint32_t Divisor) {
 }
 
 int main(int argc, char** argv) {
-    uint32_t CurrentTime, FirsTrans, TranTime;
+    uint32_t CurrentTime, FirsTransm, FreqTransm, updateTime;
     
-    CurrentTime = Time2Seconds(FrameDL[BYTE7_HOURS],FrameDL[BYTE6_MINUTES],FrameDL[BYTE5_SECONDS]);
-    TranTime = TransmissionFrequencyCalculation(FrameDL[BYTE4_AMOUNTS]);
-    FirsTrans = FirstTransmission(CurrentTime, TranTime, FrameDL[BYTE4_AMOUNTS]);
+    CurrentTime = Time2Seconds(Frame_2[BYTE0_HOURS],Frame_2[BYTE1_MINUTES],Frame_2[BYTE2_SECONDS]);
+    updateTime = Time2Seconds(Frame_2[BYTE3_HOURS], Frame_2[BYTE4_MINUTES], 0); 
+    FreqTransm = TransmissionFrequencyCalculation(Frame_2[BYTE5_AMOUNTS]);
     
-//    FirsTrans = NextTransmissonCalculate(FrameDL[BYTE4_AMOUNTS] ,CurrentTime);
+    printf("El dispositivo Transmirtira %u veces al día. \na partir de las: ", Frame_2[BYTE5_AMOUNTS]);
+    Seconds2HMS(updateTime); printf("\n\n");
+
+    TransmissionHours(updateTime, FreqTransm, Frame_2[BYTE5_AMOUNTS]);                              printf("\n\n");
+    FirsTransm = FirstTransmission(CurrentTime, updateTime, FreqTransm, Frame_2[BYTE5_AMOUNTS]);    printf("\n\n");
     
-    Seconds2HMS(CurrentTime);
-    printf("%u \n",division(CurrentTime, ONE_HOUR_IN_SECONDS));
-    
-    printf("\nHora actual en segundos:         %u s - ",CurrentTime);     Seconds2HMS(CurrentTime);
-    printf("Frecuencia de transmision:         %u s - ",TranTime);        Seconds2HMS(TranTime);
-    printf("Tiempo para la primera tranmision: %u s - ",FirsTrans);       Seconds2HMS(FirsTrans);   
-    
+    printf("\n");
+    printf("Hora actual en segundos:              %u s - ",CurrentTime);  Seconds2HMS(CurrentTime);  printf("\n");
+    printf("Hora de transmision                   %u s - ",updateTime);   Seconds2HMS(updateTime);   printf("\n");
+    printf("Frecuencia de transmision:            %u s - ",FreqTransm);   Seconds2HMS(FreqTransm);   printf("\n");
+    printf("Tiempo para la primera tranmision:    %u s - ",FirsTransm);   Seconds2HMS(FirsTransm);   printf("\n");
+
     return (EXIT_SUCCESS);
 }
 
+
+//uint32_t FirstTransmission(uint32_t CurrentTime, uint32_t updateTime, uint32_t FreqTransm,uint32_t Amounts) {
+//    uint32_t i,flag = 0;
+//
+//    if(updateTime > CurrentTime) {
+//        for(i = 0; i <= Amounts; i++) {
+//            if((updateTime = updateTime + FreqTransm) >= ONEDAY_ON_SECONDS) {
+//                updateTime = updateTime - ONEDAY_ON_SECONDS;
+//                flag = 1;
+//            }
+//            if (flag) if (updateTime >= CurrentTime) break;
+//            Seconds2HMS(updateTime);
+//        }
+//    }
+//    if (updateTime < CurrentTime) {
+//        for(i = 0; i <= Amounts; i++) {
+//             if((updateTime = updateTime + FreqTransm) >= CurrentTime) break;
+//             Seconds2HMS(updateTime);
+//        }
+//    }
+//    
+//    Seconds2HMS(updateTime);
+//    return (updateTime - CurrentTime);
+//}
